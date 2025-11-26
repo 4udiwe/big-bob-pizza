@@ -24,7 +24,7 @@ func (r *RowOrder) ToEntity() entity.Order {
 	return entity.Order{
 		ID:          r.ID,
 		CustomerID:  r.CustomerID,
-		Status:      entity.OrderStatus{ID: r.StatusID, Name: r.StatusName},
+		Status:      entity.OrderStatus{ID: r.StatusID, Name: entity.StatusName(r.StatusName)},
 		TotalAmount: r.TotalAmount,
 		Currency:    r.Currency,
 		PaymentID:   r.PaymentID,

@@ -26,7 +26,7 @@ func (r RowOutbox) ToEntity() outbox.OutboxEvent {
 		AggregateID:   r.AggregateID,
 		EventType:     r.EventType,
 		Payload:       r.Payload,
-		Status:        outbox.Status{ID: r.StatusID, Name: r.StatusName},
+		Status:        outbox.Status{ID: r.StatusID, Name: outbox.StatusName(r.StatusName)},
 		CreatedAt:     r.CreatedAt,
 		ProcessedAt:   r.ProcessedAt,
 	}

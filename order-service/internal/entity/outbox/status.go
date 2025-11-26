@@ -1,12 +1,14 @@
 package outbox
 
+type StatusName string
+
 const (
-	StatusPending   = "pending"
-	StatusFailed    = "failed"
-	StatusProcessed = "processed"
+	StatusPending   StatusName = "pending"
+	StatusFailed    StatusName = "failed"
+	StatusProcessed StatusName = "processed"
 )
 
 type Status struct {
 	ID   int
-	Name string
+	Name StatusName
 }
