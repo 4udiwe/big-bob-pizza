@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/4udiwe/avito-pvz/pkg/postgres"
-	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity/outbox"
+	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
+	"github.com/4udiwe/big-bob-pizza/order-service/pkg/outbox"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -21,7 +22,7 @@ func New(pg *postgres.Postgres) *Repository {
 	return &Repository{Postgres: pg}
 }
 
-func (r *Repository) Create(ctx context.Context, ev outbox.OutboxEvent) error {
+func (r *Repository) Create(ctx context.Context, ev entity.OutboxEvent) error {
 	logrus.Infof("OutboxRepository.Create: aggregate=%s id=%s type=%s",
 		ev.AggregateType, ev.AggregateID, ev.EventType)
 
@@ -42,7 +43,7 @@ func (r *Repository) Create(ctx context.Context, ev outbox.OutboxEvent) error {
 	return nil
 }
 
-func (r *Repository) FetchPending(ctx context.Context, limit int) ([]outbox.OutboxEvent, error) {
+func (r *Repository) FetchPending(ctx context.Context, limit int) ([]outbox.Event, error) {
 	logrus.Infof("OutboxRepository.FetchPending: limit=%d", limit)
 
 	query := `
@@ -58,7 +59,7 @@ func (r *Repository) FetchPending(ctx context.Context, limit int) ([]outbox.Outb
 		FOR UPDATE SKIP LOCKED;
 	`
 
-	rows, err := r.GetTxManager(ctx).Query(ctx, query, outbox.StatusPending, limit)
+	rows, err := r.GetTxManager(ctx).Query(ctx, query, entity.OutboxStatusPending, limit)
 	if err != nil {
 		logrus.Errorf("OutboxRepository.FetchPending: query error: %v", err)
 		return nil, err
@@ -70,9 +71,10 @@ func (r *Repository) FetchPending(ctx context.Context, limit int) ([]outbox.Outb
 		return nil, err
 	}
 
-	events := lo.Map(dtoRows, func(r RowOutbox, _ int) outbox.OutboxEvent { return r.ToEntity() })
+	events := lo.Map(dtoRows, func(r RowOutbox, _ int) outbox.Event { return r.ToEvent() })
 
 	logrus.Infof("OutboxRepository.FetchPending: fetched=%d", len(events))
+
 	return events, nil
 }
 
@@ -85,7 +87,7 @@ func (r *Repository) MarkProcessed(ctx context.Context, ids []uuid.UUID) error {
 
 	query, args, _ := r.Builder.
 		Update("outbox").
-		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", outbox.StatusProcessed)).
+		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", entity.OutboxStatusProcessed)).
 		Set("processed_at", time.Now()).
 		Where("id IN (?)", ids).
 		ToSql()
@@ -104,7 +106,7 @@ func (r *Repository) MarkFailed(ctx context.Context, id uuid.UUID, errorText str
 
 	query, args, _ := r.Builder.
 		Update("outbox").
-		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", outbox.StatusFailed)).
+		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", entity.OutboxStatusFailed)).
 		Set("processed_at", time.Now()).
 		Where("id = ?", id).
 		ToSql()
@@ -118,7 +120,7 @@ func (r *Repository) MarkFailed(ctx context.Context, id uuid.UUID, errorText str
 	return nil
 }
 
-func (r *Repository) RequeueFailed(ctx context.Context, limit int) ([]outbox.OutboxEvent, error) {
+func (r *Repository) RequeueFailed(ctx context.Context, limit int) ([]outbox.Event, error) {
 	logrus.Infof("OutboxRepository.RequeueFailed: limit=%d", limit)
 
 	query := `
@@ -133,7 +135,7 @@ func (r *Repository) RequeueFailed(ctx context.Context, limit int) ([]outbox.Out
 		LIMIT $2;
 	`
 
-	rows, err := r.GetTxManager(ctx).Query(ctx, query, outbox.StatusFailed, limit)
+	rows, err := r.GetTxManager(ctx).Query(ctx, query, entity.OutboxStatusFailed, limit)
 	if err != nil {
 		logrus.Errorf("OutboxRepository.RequeueFailed: query error: %v", err)
 		return nil, err
@@ -145,14 +147,14 @@ func (r *Repository) RequeueFailed(ctx context.Context, limit int) ([]outbox.Out
 		return nil, err
 	}
 
-	events := lo.Map(dtoRows, func(r RowOutbox, _ int) outbox.OutboxEvent { return r.ToEntity() })
+	events := lo.Map(dtoRows, func(r RowOutbox, _ int) outbox.Event { return r.ToEvent() })
 
 	// Update status
-	ids := lo.Map(events, func(e outbox.OutboxEvent, _ int) uuid.UUID { return e.ID })
+	ids := lo.Map(events, func(e outbox.Event, _ int) uuid.UUID { return e.ID })
 
 	query, args, _ := r.Builder.
 		Update("outbox").
-		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", outbox.StatusPending)).
+		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", entity.OutboxStatusPending)).
 		Set("processed_at", nil).
 		Where(squirrel.Expr("id = ANY(?)", ids)).
 		ToSql()

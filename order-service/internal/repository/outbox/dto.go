@@ -1,9 +1,11 @@
 package outbox_repository
 
 import (
+	"encoding/json"
 	"time"
 
-	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity/outbox"
+	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
+	"github.com/4udiwe/big-bob-pizza/order-service/pkg/outbox"
 	"github.com/google/uuid"
 )
 
@@ -19,15 +21,27 @@ type RowOutbox struct {
 	ProcessedAt   *time.Time     `db:"processed_at"`
 }
 
-func (r RowOutbox) ToEntity() outbox.OutboxEvent {
-	return outbox.OutboxEvent{
+func (r RowOutbox) ToEntity() entity.OutboxEvent {
+	return entity.OutboxEvent{
 		ID:            r.ID,
 		AggregateType: r.AggregateType,
 		AggregateID:   r.AggregateID,
 		EventType:     r.EventType,
 		Payload:       r.Payload,
-		Status:        outbox.Status{ID: r.StatusID, Name: outbox.StatusName(r.StatusName)},
+		Status:        entity.OutboxStatus{ID: r.StatusID, Name: entity.OutboxStatusName(r.StatusName)},
 		CreatedAt:     r.CreatedAt,
 		ProcessedAt:   r.ProcessedAt,
+	}
+}
+
+func (r RowOutbox) ToEvent() outbox.Event {
+	payloadBytes, err := json.Marshal(r.Payload)
+	if err != nil {
+		payloadBytes = []byte("{}")
+	}
+	return outbox.Event{
+		ID:        r.ID,
+		EventType: r.EventType,
+		Payload:   payloadBytes,
 	}
 }

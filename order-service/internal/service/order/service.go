@@ -10,7 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
-	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity/outbox"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/repository"
 	"github.com/4udiwe/big-bob-pizza/order-service/pkg/transactor"
 )
@@ -63,12 +62,12 @@ func (s *Service) CreateOrder(ctx context.Context, ord entity.Order) (entity.Ord
 		created.Items = items
 
 		// 3. Create outbox event
-		ev := outbox.OutboxEvent{
+		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   created.ID,
 			EventType:     "OrderCreated",
 			Payload:       map[string]any{"order_id": created.ID},
-			Status:        outbox.Status{ID: 1, Name: "pending"},
+			Status:        entity.OutboxStatus{ID: 1, Name: "pending"},
 			CreatedAt:     time.Now(),
 		}
 		if err := s.OutboxRepo.Create(ctx, ev); err != nil {
@@ -117,12 +116,12 @@ func (s *Service) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, stat
 		ord = &o
 
 		// Create outbox event
-		ev := outbox.OutboxEvent{
+		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   orderID,
 			EventType:     "OrderStatusUpdated",
 			Payload:       map[string]any{"order_id": orderID, "status": status.Name},
-			Status:        outbox.Status{Name: outbox.StatusPending},
+			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
 			CreatedAt:     now,
 		}
 		if err := s.OutboxRepo.Create(ctx, ev); err != nil {
@@ -170,12 +169,12 @@ func (s *Service) MarkOrderPaid(ctx context.Context, orderID, paymentID uuid.UUI
 		ord = &o
 
 		// Create outbox event
-		ev := outbox.OutboxEvent{
+		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   orderID,
 			EventType:     "OrderStatusUpdated",
 			Payload:       map[string]any{"order_id": orderID, "status": ord.Status.Name},
-			Status:        outbox.Status{Name: outbox.StatusPending},
+			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
 			CreatedAt:     now,
 		}
 		if err := s.OutboxRepo.Create(ctx, ev); err != nil {
@@ -222,12 +221,12 @@ func (s *Service) MarkOrderDelivering(ctx context.Context, orderID, deliveryID u
 		ord = &o
 
 		// Create outbox event
-		ev := outbox.OutboxEvent{
+		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   orderID,
 			EventType:     "OrderStatusUpdated",
 			Payload:       map[string]any{"order_id": orderID, "status": ord.Status.Name},
-			Status:        outbox.Status{Name: outbox.StatusPending},
+			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
 			CreatedAt:     now,
 		}
 		if err := s.OutboxRepo.Create(ctx, ev); err != nil {

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
-	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity/outbox"
 	"github.com/google/uuid"
 )
 
@@ -29,7 +28,7 @@ type ItemsRepo interface {
 }
 
 type OutboxRepo interface {
-	Create(ctx context.Context, ev outbox.OutboxEvent) error
+	Create(ctx context.Context, ev entity.OutboxEvent) error
 }
 
 type CacheRepo interface {
