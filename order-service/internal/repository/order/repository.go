@@ -8,6 +8,7 @@ import (
 	"github.com/4udiwe/avito-pvz/pkg/postgres"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/repository"
+	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
@@ -73,12 +74,12 @@ func (r *Repository) Create(ctx context.Context, order entity.Order) (entity.Ord
 	return rowOrder.ToEntity(), nil
 }
 
-func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status entity.OrderStatus, time time.Time) error {
+func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status entity.StatusName, time time.Time) error {
 	logrus.Infof("OrderRepository.UpdateOrderStatus: orderID=%v, status=%v", orderID, status)
 
 	query, args, _ := r.Builder.
 		Update("order").
-		Set("status", status).
+		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(status))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
 		ToSql()
@@ -99,7 +100,8 @@ func (r *Repository) UpdateOrderPayment(ctx context.Context, orderID, paymentID 
 
 	query, args, _ := r.Builder.
 		Update("order").
-		Set("payment_id", paymentID).
+		Set("payment_id", paymentID). // Set status to Paid
+		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusPaid))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
 		ToSql()
@@ -120,7 +122,8 @@ func (r *Repository) UpdateOrderDelivery(ctx context.Context, orderID, deliveryI
 
 	query, args, _ := r.Builder.
 		Update("order").
-		Set("delivery_id", deliveryID).
+		Set("delivery_id", deliveryID). // Set status to Delivering
+		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusDelivering))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
 		ToSql()
