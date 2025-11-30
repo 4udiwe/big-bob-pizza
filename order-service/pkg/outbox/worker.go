@@ -68,7 +68,8 @@ func (w *Worker) processBatch(ctx context.Context) {
 	processedIDs := make([]uuid.UUID, 0, len(events))
 
 	for _, e := range events {
-		err := w.publisher.Publish(ctx, w.topic, e.Payload)
+
+		err := w.publisher.Publish(ctx, w.topic, e.EventType, e.Payload)
 		if err != nil {
 			logrus.Errorf("OutboxWorker: failed to publish event %v: %v", e.ID, err)
 			if errMark := w.repo.MarkFailed(ctx, e.ID, fmt.Sprintf("%v", err)); errMark != nil {

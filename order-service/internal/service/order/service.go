@@ -65,8 +65,8 @@ func (s *Service) CreateOrder(ctx context.Context, ord entity.Order) (entity.Ord
 		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   created.ID,
-			EventType:     "OrderCreated",
-			Payload:       map[string]any{"order_id": created.ID},
+			EventType:     "created",
+			Payload:       map[string]any{"orderId": created.ID},
 			Status:        entity.OutboxStatus{ID: 1, Name: "pending"},
 			CreatedAt:     time.Now(),
 		}
@@ -103,32 +103,15 @@ func (s *Service) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, stat
 	var ord *entity.Order
 
 	err := s.TxManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		// Update in Postgres
-		if err := s.OrderRepo.UpdateOrderStatus(ctx, orderID, status.Name, now); err != nil {
-			return err
-		}
-
-		// Get updated with items from Postgres
+		// Get order from Postgres
 		o, err := s.OrderRepo.GetOrderByID(ctx, orderID)
 		if err != nil {
 			return err
 		}
 		ord = &o
 
-		// Create outbox event
-		ev := entity.OutboxEvent{
-			AggregateType: "order",
-			AggregateID:   orderID,
-			EventType:     "OrderStatusUpdated",
-			Payload:       map[string]any{"order_id": orderID, "status": status.Name},
-			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
-			CreatedAt:     now,
-		}
-		if err := s.OutboxRepo.Create(ctx, ev); err != nil {
-			log.Warnf("OrderService.UpdateOrderStatus: failed to create outbox: %v", err)
-		}
-
-		return nil
+		// Update in Postgres
+		return s.OrderRepo.UpdateOrderStatus(ctx, orderID, status.Name, now)
 	})
 	if err != nil {
 		log.Errorf("OrderService.UpdateOrderStatus: failed: %v", err)
@@ -145,7 +128,64 @@ func (s *Service) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, stat
 		_ = s.CacheRepo.RemoveFromStatus(ctx, string(ord.Status.Name), orderID)
 	}
 
+	ord.Status = status
+
 	log.Infof("OrderService.UpdateOrderStatus: order %s updated to %s", orderID, status.Name)
+	return *ord, nil
+}
+
+func (s *Service) MarkOrderReady(ctx context.Context, orderID uuid.UUID) (entity.Order, error) {
+	log.Infof("OrderService.MarkOrderReady: order %s", orderID)
+	now := time.Now()
+	newStatus := entity.StatusPrepeared
+
+	var ord *entity.Order
+
+	err := s.TxManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		// Get order from Postgres
+		o, err := s.OrderRepo.GetOrderByID(ctx, orderID)
+		if err != nil {
+			return err
+		}
+		ord = &o
+
+		// Update in Postgres
+		if err := s.OrderRepo.UpdateOrderStatus(ctx, orderID, newStatus, now); err != nil {
+			return err
+		}
+
+		// Create outbox event
+		ev := entity.OutboxEvent{
+			AggregateType: "order",
+			AggregateID:   orderID,
+			EventType:     "prepeared",
+			Payload:       map[string]any{"orderId": orderID},
+			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
+			CreatedAt:     now,
+		}
+		if err := s.OutboxRepo.Create(ctx, ev); err != nil {
+			log.Warnf("OrderService.MarkOrderReady: failed to create outbox: %v", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Errorf("OrderService.MarkOrderReady: failed: %v", err)
+		return entity.Order{}, err
+	}
+
+	// Sync redis
+	if ord != nil {
+		if err := s.CacheRepo.Save(ctx, ord); err != nil {
+			log.Warnf("OrderService.MarkOrderReady: failed to update cache: %v", err)
+		}
+		_ = s.CacheRepo.AddToStatus(ctx, string(newStatus), orderID)
+		_ = s.CacheRepo.RemoveFromStatus(ctx, string(ord.Status.Name), orderID)
+	}
+
+	ord.Status = entity.OrderStatus{Name: newStatus}
+
+	log.Infof("OrderService.MarkOrderReady: order %s updated to ready", orderID)
 	return *ord, nil
 }
 
@@ -172,8 +212,8 @@ func (s *Service) MarkOrderPaid(ctx context.Context, orderID, paymentID uuid.UUI
 		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   orderID,
-			EventType:     "OrderStatusUpdated",
-			Payload:       map[string]any{"order_id": orderID, "status": ord.Status.Name},
+			EventType:     "paid",
+			Payload:       map[string]any{"orderId": orderID, "paymentId": paymentID},
 			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
 			CreatedAt:     now,
 		}
@@ -208,7 +248,7 @@ func (s *Service) MarkOrderDelivering(ctx context.Context, orderID, deliveryID u
 	var ord *entity.Order
 
 	err := s.TxManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		// Update order payment and set status
+		// Update order delivery and set status
 		if err := s.OrderRepo.UpdateOrderDelivery(ctx, orderID, deliveryID, now); err != nil {
 			return err
 		}
@@ -224,8 +264,8 @@ func (s *Service) MarkOrderDelivering(ctx context.Context, orderID, deliveryID u
 		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   orderID,
-			EventType:     "OrderStatusUpdated",
-			Payload:       map[string]any{"order_id": orderID, "status": ord.Status.Name},
+			EventType:     "delivering",
+			Payload:       map[string]any{"orderId": orderID},
 			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
 			CreatedAt:     now,
 		}
@@ -250,6 +290,60 @@ func (s *Service) MarkOrderDelivering(ctx context.Context, orderID, deliveryID u
 	}
 
 	log.Infof("OrderService.MarkOrderPaid: order %s updated", orderID)
+	return entity.Order{}, nil
+}
+
+func (s *Service) MarkOrderCompleted(ctx context.Context, orderID uuid.UUID) (entity.Order, error) {
+	log.Infof("OrderService.MarkOrderCompleted: order %s", orderID)
+	now := time.Now()
+	newStatus := entity.StatusCompleted
+
+	var ord *entity.Order
+
+	err := s.TxManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		// Update order status
+		if err := s.OrderRepo.UpdateOrderStatus(ctx, orderID, newStatus, now); err != nil {
+			return err
+		}
+
+		// Get updated order with items from Postgres
+		o, err := s.OrderRepo.GetOrderByID(ctx, orderID)
+		if err != nil {
+			return err
+		}
+		ord = &o
+
+		// Create outbox event
+		ev := entity.OutboxEvent{
+			AggregateType: "order",
+			AggregateID:   orderID,
+			EventType:     "completed",
+			Payload:       map[string]any{"orderId": orderID},
+			Status:        entity.OutboxStatus{Name: entity.OutboxStatusPending},
+			CreatedAt:     now,
+		}
+		if err := s.OutboxRepo.Create(ctx, ev); err != nil {
+			log.Warnf("OrderService.MarkOrderCompleted: failed to create outbox: %v", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Errorf("OrderService.MarkOrderCompleted: failed: %v", err)
+		return entity.Order{}, err
+	}
+
+	// Sync redis
+	if ord != nil {
+		if err := s.CacheRepo.Save(ctx, ord); err != nil {
+			log.Warnf("OrderService.MarkOrderCompleted: failed to update cache: %v", err)
+		}
+		_ = s.CacheRepo.AddToStatus(ctx, string(ord.Status.Name), orderID)
+		_ = s.CacheRepo.RemoveFromStatus(ctx, string(entity.StatusDelivering), orderID)
+		_ = s.CacheRepo.RemoveUserActive(ctx, ord.CustomerID, ord.ID)
+	}
+
+	log.Infof("OrderService.MarkOrderCompleted: order %s updated", orderID)
 	return entity.Order{}, nil
 }
 

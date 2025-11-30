@@ -14,5 +14,5 @@ type Repository interface {
 }
 
 type Publisher interface {
-	Publish(ctx context.Context, topic string, payload []byte) error
+	Publish(ctx context.Context, topic string, eventType string, payload any) error
 }

@@ -12,7 +12,7 @@ CREATE TABLE order_status (
 );
 
 INSERT INTO order_status (name) VALUES
-('created'), ('paid'), ('preparing'), ('delivering'), ('completed'), ('cancelled');
+('created'), ('paid'), ('preparing'), ('prepeared'), ('delivering'), ('completed'), ('cancelled');
 
 -- ================================
 --  Lookup table: outbox_status
