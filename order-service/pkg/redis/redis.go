@@ -34,9 +34,11 @@ func New(addr, password string, db int, opts ...Option) (*Redis, error) {
 	}
 
 	r.Client = redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
+		Addr:         addr,
+		Password:     password,
+		DB:           db,
+		PoolSize:     20,
+		MinIdleConns: 5,
 	})
 
 	var err error

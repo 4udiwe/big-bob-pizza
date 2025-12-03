@@ -1,4 +1,4 @@
-package events
+package consumer
 
 import (
 	"encoding/json"
@@ -10,6 +10,8 @@ import (
 
 var ErrUnknownEventType = errors.New("unknown event.type")
 
+// Универсальный парсер для входящих событий.
+// Использует общий kafka.Envelope
 func ParseOrderEvent(data []byte) (*IncomingEvent, error) {
 	var env kafka.Envelope
 

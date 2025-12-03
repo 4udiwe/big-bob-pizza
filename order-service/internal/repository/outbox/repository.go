@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/4udiwe/avito-pvz/pkg/postgres"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
 	"github.com/4udiwe/big-bob-pizza/order-service/pkg/outbox"
+	"github.com/4udiwe/big-bob-pizza/order-service/pkg/postgres"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -47,13 +47,14 @@ func (r *Repository) FetchPending(ctx context.Context, limit int) ([]outbox.Even
 	logrus.Infof("OutboxRepository.FetchPending: limit=%d", limit)
 
 	query := `
-		SELECT 
+		SELECT
 			o.id, o.aggregate_type, o.aggregate_id, o.event_type, o.payload,
 			o.status_id,
-			(SELECT name FROM outbox_status WHERE id = o.status_id) AS status_name,
+			s.name AS status_name,
 			o.created_at, o.processed_at
 		FROM outbox o
-		WHERE o.status_name = $1 
+		JOIN outbox_status s ON s.id = o.status_id
+		WHERE s.name = $1
 		ORDER BY o.created_at
 		LIMIT $2
 		FOR UPDATE SKIP LOCKED;
@@ -89,7 +90,7 @@ func (r *Repository) MarkProcessed(ctx context.Context, ids []uuid.UUID) error {
 		Update("outbox").
 		Set("status_id", squirrel.Expr("(SELECT id FROM outbox_status WHERE name = ?)", entity.OutboxStatusProcessed)).
 		Set("processed_at", time.Now()).
-		Where("id IN (?)", ids).
+		Where(squirrel.Eq{"id": ids}).
 		ToSql()
 
 	_, err := r.GetTxManager(ctx).Exec(ctx, query, args...)
@@ -124,15 +125,17 @@ func (r *Repository) RequeueFailed(ctx context.Context, limit int) ([]outbox.Eve
 	logrus.Infof("OutboxRepository.RequeueFailed: limit=%d", limit)
 
 	query := `
-		SELECT 
+		SELECT
 			o.id, o.aggregate_type, o.aggregate_id, o.event_type, o.payload,
 			o.status_id,
-			(SELECT name FROM outbox_status WHERE id = o.status_id) AS status_name,
+			s.name AS status_name,
 			o.created_at, o.processed_at
 		FROM outbox o
-		WHERE o.status_name = $1
+		JOIN outbox_status s ON s.id = o.status_id
+		WHERE s.name = $1
 		ORDER BY o.created_at
-		LIMIT $2;
+		LIMIT $2
+		FOR UPDATE SKIP LOCKED;
 	`
 
 	rows, err := r.GetTxManager(ctx).Query(ctx, query, entity.OutboxStatusFailed, limit)

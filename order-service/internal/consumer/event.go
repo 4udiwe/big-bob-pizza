@@ -1,4 +1,4 @@
-package events
+package consumer
 
 import (
 	"time"
@@ -8,6 +8,7 @@ import (
 
 type EventType string
 
+// Все типы событий, которые могут потребляться сервисом
 const (
 	PaymentSuccess EventType = "payment.success"
 	PaymentFailed  EventType = "payment.failed"
@@ -19,12 +20,15 @@ const (
 	DeliveryCompleted EventType = "delivery.completed"
 )
 
+// Тип для обработки входящего события
 type IncomingEvent struct {
 	Type       EventType
 	OccurredAt time.Time
 	Payload    Payload
 }
 
+// Тип данных входящего события. Перечисленны все поля, которые могут быть в событиию. 
+// (omitempty опускает поле, если его нет)
 type Payload struct {
 	PaymentID   uuid.UUID `json:"paymentId"`
 	OrderID     uuid.UUID `json:"orderId,omitempty"`

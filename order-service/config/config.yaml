@@ -1,0 +1,43 @@
+app:
+  name: "big-bob-pizza-order-service"
+  version: "1.0.0"
+
+http:
+  port: "8080"
+
+logger:
+  level: "debug"
+
+postgres:
+  connect_timeout: 5s
+
+redis:
+  addr: "redis:6379"
+
+kafka:
+  brokers:
+    - "localhost:9092"
+  topics:
+    payment_events: "payment.events"
+    kitchen_events: "kitchen.events"
+    delivery_events: "delivery.events"
+
+  producer:
+    required_acks: 1
+    batch_size: 5
+    batch_timeout: 50ms
+    compression: "snappy"
+
+  consumer:
+    group_id: "order-service"
+    max_wait: 50ms
+    session_timeout: 10s
+    heartbeat_interval: 3s
+    commit_interval: 1s
+
+outbox:
+  topic: "order.events"
+  batch_limit: 5
+  interval: 3s
+  reque_batch_limit: 10
+  reque_interval: 30s

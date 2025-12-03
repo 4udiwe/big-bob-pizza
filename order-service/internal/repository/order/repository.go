@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/4udiwe/avito-pvz/pkg/postgres"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/repository"
+	"github.com/4udiwe/big-bob-pizza/order-service/pkg/postgres"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
@@ -31,14 +31,14 @@ func (r *Repository) Create(ctx context.Context, order entity.Order) (entity.Ord
 	logrus.Infof("OrderRepository.Create: customerID=%v", order.CustomerID)
 
 	query, args, _ := r.Builder.
-		Insert("order").
+		Insert("orders").
 		Columns("customer_id", "total_amount", "currency").
 		Values(order.CustomerID, order.TotalAmount, order.Currency).
 		Suffix(`RETURNING 
 				id,
 				customer_id,
 				status_id,
-				(SELECT name from "order_status" WHERE id = status_id) as status_name
+				(SELECT name from "order_status" WHERE id = status_id) as status_name,
 				total_amount,
 				currency,
 				payment_id,
@@ -78,7 +78,7 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, s
 	logrus.Infof("OrderRepository.UpdateOrderStatus: orderID=%v, status=%v", orderID, status)
 
 	query, args, _ := r.Builder.
-		Update("order").
+		Update("orders").
 		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(status))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
@@ -99,7 +99,7 @@ func (r *Repository) UpdateOrderPayment(ctx context.Context, orderID, paymentID 
 	logrus.Infof("OrderRepository.UpdateOrderPayment: orderID=%v", orderID)
 
 	query, args, _ := r.Builder.
-		Update("order").
+		Update("orders").
 		Set("payment_id", paymentID). // Set status to Paid
 		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusPaid))).
 		Set("updated_at", time).
@@ -121,7 +121,7 @@ func (r *Repository) UpdateOrderDelivery(ctx context.Context, orderID, deliveryI
 	logrus.Infof("OrderRepository.UpdateOrderDelivery: orderID=%v", orderID)
 
 	query, args, _ := r.Builder.
-		Update("order").
+		Update("orders").
 		Set("delivery_id", deliveryID). // Set status to Delivering
 		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusDelivering))).
 		Set("updated_at", time).
@@ -144,7 +144,7 @@ func (r *Repository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entit
 
 	query, args, _ := r.Builder.
 		Select("id", "customer_id", "status", "payment_id", "delivery_id", "total_amount", "currency", "created_at", "updated_at").
-		From("order").
+		From("orders").
 		Where("id = ?", orderID).
 		ToSql()
 
@@ -197,7 +197,7 @@ func (r *Repository) GetAllOrders(ctx context.Context, limit, offset int) (order
 	// Get total
 	countQuery, countArgs, _ := r.Builder.
 		Select("COUNT(*)").
-		From(`"order"`).
+		From(`"orders"`).
 		ToSql()
 
 	err = r.GetTxManager(ctx).QueryRow(ctx, countQuery, countArgs...).Scan(&total)
@@ -220,7 +220,7 @@ func (r *Repository) GetAllOrders(ctx context.Context, limit, offset int) (order
 			created_at,
 			updated_at
 		`).
-		From(`"order"`).
+		From(`"orders"`).
 		OrderBy("created_at DESC").
 		Limit(uint64(limit)).
 		Offset(uint64(offset)).
@@ -311,7 +311,7 @@ func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID) (o
 			created_at,
 			updated_at
 		`).
-		From(`"order"`).
+		From(`"orders"`).
 		OrderBy("created_at DESC").
 		Where("customer_id = ?", userID).
 		ToSql()

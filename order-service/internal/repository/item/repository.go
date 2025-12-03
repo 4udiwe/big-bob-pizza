@@ -3,8 +3,8 @@ package item_repository
 import (
 	"context"
 
-	"github.com/4udiwe/avito-pvz/pkg/postgres"
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
+	"github.com/4udiwe/big-bob-pizza/order-service/pkg/postgres"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/samber/lo"
