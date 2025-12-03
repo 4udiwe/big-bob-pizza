@@ -1,0 +1,134 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: order_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-order}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-orderpass}
+      POSTGRES_DB: ${DB_NAME:-orderdb}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${DB_USER:-order} -d ${DB_NAME:-orderdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7
+    container_name: order_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: order_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - app-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: order_kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+
+      # Zookeeper
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+
+      # LISTENERS — фактические порты, которые Kafka слушает
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+
+      # ADVERTISED LISTENERS — как к ней подключаются клиенты
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+
+      # mapping listener names
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
+      # автоматическое создание топиков при публикации
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # Kafka internal settings
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+    ports:
+      - "9092:9092" # external access
+      - "29092:29092" # нужен для некоторых UI/cli tools
+    networks:
+      - app-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka_ui
+    depends_on:
+      - kafka
+    ports:
+      - "${KAFKA_UI_PORT:-8081}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:9092"
+      KAFKA_CLUSTERS_0_ZOOKEEPER: "zookeeper:2181"
+    networks:
+      - app-network
+
+  order-service:
+    build: .
+    container_name: order_service
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    environment:
+      # Postgres connection used inside the app (note host 'postgres')
+      POSTGRES_URL: "postgres://${DB_USER:-order}:${DB_PASSWORD:-orderpass}@postgres:${DB_PORT:-5432}/${DB_NAME:-orderdb}?sslmode=disable"
+      # Kafka brokers for the app
+      KAFKA_BROKERS: "kafka:9092"
+      # path inside container where your config.yaml is mounted
+      CONFIG_PATH: "/config/config.yaml"
+      # server port exposed by the app (echo)
+      SERVER_PORT: "${SERVER_PORT:-8080}"
+    volumes:
+      - ./config:/config:ro
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:${SERVER_PORT:-8080}/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+
+networks:
+  app-network:
+    driver: bridge
