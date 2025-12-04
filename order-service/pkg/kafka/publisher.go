@@ -9,10 +9,13 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+// KafkaPublisher — обёртка над kafka-go Writer для публикации событий в формате Envelope.
 type KafkaPublisher struct {
 	writer *kafka.Writer
 }
 
+// NewKafkaPublisher создаёт синхронный Kafka‑паблишер с минимальными настройками,
+// используя переданный список брокеров.
 func NewKafkaPublisher(brokers []string) *KafkaPublisher {
 	return &KafkaPublisher{
 		writer: &kafka.Writer{
@@ -23,6 +26,10 @@ func NewKafkaPublisher(brokers []string) *KafkaPublisher {
 	}
 }
 
+// Publish сериализует произвольный payload в JSON, заворачивает его в Envelope
+// и публикует в Kafka в указанный topic.
+//
+// Ключ сообщения (Key) — это eventType, чтобы события одного типа лежали последовательно в партициях.
 func (p *KafkaPublisher) Publish(ctx context.Context, topic string, eventType string, payload any) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
