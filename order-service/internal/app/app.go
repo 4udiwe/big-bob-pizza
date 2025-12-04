@@ -96,27 +96,32 @@ func (app *App) Start() {
 
 	defer redis.Close()
 
+	// Общий контекст для всех фоновых задач (HTTP‑сервер, Kafka‑consumer’ы, OutboxWorker).
+	// По сигналу/ошибке сервера мы вызываем cancel() и корректно останавливаем фоновые горутины.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Consumers
 	paymentKafkaConsumer := kafka.NewConsumer(app.cfg.Kafka.Brokers)
 	kitchenKafkaConsumer := kafka.NewConsumer(app.cfg.Kafka.Brokers)
 	deliveryKafkaConsumer := kafka.NewConsumer(app.cfg.Kafka.Brokers)
 
 	app.paymentConsumer = consumer_payment.New(
-		app.orderService,
+		app.OrderService(),
 		paymentKafkaConsumer,
 		app.cfg.Kafka.Topics.PaymentEvents,
 		app.cfg.Kafka.Consumer.GroupID,
 	)
 
 	app.kitchenConsumer = consumer_kitchen.New(
-		app.orderService,
+		app.OrderService(),
 		kitchenKafkaConsumer,
 		app.cfg.Kafka.Topics.KitchenEvents,
 		app.cfg.Kafka.Consumer.GroupID,
 	)
 
 	app.deliveryConsumer = consumer_delivery.New(
-		app.orderService,
+		app.OrderService(),
 		deliveryKafkaConsumer,
 		app.cfg.Kafka.Topics.DeliveryEvents,
 		app.cfg.Kafka.Consumer.GroupID,
@@ -141,15 +146,7 @@ func (app *App) Start() {
 	httpServer.Start()
 	log.Debugf("Server port: %s", app.cfg.HTTP.Port)
 
-	defer func() {
-		if err := httpServer.Shutdown(); err != nil {
-			log.Errorf("HTTP server shutdown error: %v", err)
-		}
-	}()
-
 	// Run consumers and publisher
-	ctx := context.Background()
-
 	app.paymentConsumer.Run(ctx)
 	app.kitchenConsumer.Run(ctx)
 	app.deliveryConsumer.Run(ctx)
@@ -161,6 +158,11 @@ func (app *App) Start() {
 		log.Infof("app - Start - signal: %v", s)
 	case err := <-httpServer.Notify():
 		log.Errorf("app - Start - server error: %v", err)
+	}
+
+	// Останавливаем HTTP‑сервер после получения сигнала/ошибки.
+	if err := httpServer.Shutdown(); err != nil {
+		log.Errorf("HTTP server shutdown error: %v", err)
 	}
 
 	log.Info("Shutting down...")
