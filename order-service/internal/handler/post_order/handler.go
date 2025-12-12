@@ -69,9 +69,9 @@ type ResponseOrderItem struct {
 // @Produce json
 // @Param request body Request true "Данные заказа"
 // @Success 201 {object} Response
-// @Failure 400 {object} echo.HTTPError
-// @Failure 409 {object} echo.HTTPError
-// @Failure 500 {object} echo.HTTPError
+// @Failure 400 {string} string "Ошибка валидации"
+// @Failure 409 {string} string "Заказ уже существует"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
 // @Router /orders [post]
 func (h *handler) Handle(c echo.Context, in Request) error {
 

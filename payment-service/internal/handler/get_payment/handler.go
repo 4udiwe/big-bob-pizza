@@ -33,8 +33,8 @@ type PaymentService interface {
 // @Produce json
 // @Param id path string true "ID платежа (UUID)"
 // @Success 200 {object} PaymentResponse
-// @Failure 404 {object} echo.HTTPError
-// @Failure 500 {object} echo.HTTPError
+// @Failure 404 {string} string "Платеж не найден"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
 // @Router /payments/{id} [get]
 func (h *handler) Handle(c echo.Context) error {
 	paymentIDStr := c.Param("id")

@@ -45,10 +45,10 @@ type Response struct {
 // @Produce json
 // @Param request body Request true "Данные для оплаты"
 // @Success 200 {object} Response
-// @Failure 400 {object} echo.HTTPError
-// @Failure 404 {object} echo.HTTPError
-// @Failure 409 {object} echo.HTTPError
-// @Failure 500 {object} echo.HTTPError
+// @Failure 400 {string} string "Ошибка валидации"
+// @Failure 404 {string} string "Заказ не найден"
+// @Failure 409 {string} string "Заказ уже оплачен"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
 // @Router /payments [post]
 func (h *handler) Handle(c echo.Context, in Request) error {
 	payment, err := h.s.ProcessPayment(c.Request().Context(), in.OrderID, in.Amount)

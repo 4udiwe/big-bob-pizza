@@ -29,8 +29,8 @@ func New(s OrderService) h.Handler {
 // @Param limit query int false "Количество записей на странице" default(20) minimum(1) maximum(100)
 // @Param offset query int false "Смещение для пагинации" default(0) minimum(0)
 // @Success 200 {object} OrdersResponse
-// @Failure 400 {object} echo.HTTPError
-// @Failure 500 {object} echo.HTTPError
+// @Failure 400 {string} string "Ошибка валидации"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
 // @Router /orders [get]
 func (h *handler) Handle(c echo.Context) error {
 	// Парсим параметры пагинации

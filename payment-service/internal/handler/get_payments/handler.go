@@ -35,8 +35,8 @@ type PaymentService interface {
 // @Param status query string false "Фильтр по статусу: pending, completed, failed"
 // @Param userId query string false "Фильтр по ID пользователя (UUID)"
 // @Success 200 {object} PaymentsResponse
-// @Failure 400 {object} echo.HTTPError
-// @Failure 500 {object} echo.HTTPError
+// @Failure 400 {string} string "Ошибка валидации"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
 // @Router /payments [get]
 func (h *handler) Handle(c echo.Context) error {
 	// Парсим параметры пагинации

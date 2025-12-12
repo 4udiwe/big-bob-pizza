@@ -27,8 +27,8 @@ func New(s OrderService) h.Handler {
 // @Produce json
 // @Param id path string true "ID заказа (UUID)"
 // @Success 200 {object} Response
-// @Failure 404 {object} echo.HTTPError
-// @Failure 500 {object} echo.HTTPError
+// @Failure 404 {string} string "Заказ не найден"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
 // @Router /orders/{id} [get]
 func (h *handler) Handle(c echo.Context) error {
 	orderIDStr := c.Param("id")
