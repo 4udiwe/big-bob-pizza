@@ -8,15 +8,15 @@ import (
 )
 
 type RowPayment struct {
-	ID            uuid.UUID  `db:"id"`
-	OrderID       uuid.UUID  `db:"order_id"`
-	Amount        float64    `db:"amount"`
-	Currency      string     `db:"currency"`
-	StatusID      int        `db:"status_id"`
-	StatusName    string     `db:"status_name"`
-	FailureReason *string    `db:"failure_reason"`
-	CreatedAt     time.Time  `db:"created_at"`
-	UpdatedAt     time.Time  `db:"updated_at"`
+	ID            uuid.UUID `db:"id"`
+	OrderID       uuid.UUID `db:"order_id"`
+	Amount        float64   `db:"amount"`
+	Currency      string    `db:"currency"`
+	StatusID      int       `db:"status_id"`
+	StatusName    string    `db:"status_name"`
+	FailureReason *string   `db:"failure_reason"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
 }
 
 func (r RowPayment) ToEntity() entity.Payment {
@@ -32,3 +32,14 @@ func (r RowPayment) ToEntity() entity.Payment {
 	}
 }
 
+type RowPaymentWithUser struct {
+	RowPayment
+	UserID *uuid.UUID `db:"user_id"`
+}
+
+func (r RowPaymentWithUser) ToPaymentWithUser() entity.PaymentWithUser {
+	return entity.PaymentWithUser{
+		Payment: r.RowPayment.ToEntity(),
+		UserID:  r.UserID,
+	}
+}

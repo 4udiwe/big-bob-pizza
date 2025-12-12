@@ -13,7 +13,10 @@ type PaymentRepo interface {
 	GetByID(ctx context.Context, paymentID uuid.UUID) (entity.Payment, error)
 	GetByOrderID(ctx context.Context, orderID uuid.UUID) (entity.Payment, error)
 	UpdateStatus(ctx context.Context, paymentID uuid.UUID, status entity.PaymentStatus, failureReason *string) error
+	GetAllPayments(ctx context.Context, limit, offset int, status *entity.PaymentStatusName, userID *uuid.UUID) ([]entity.PaymentWithUser, int, error)
+	GetPaymentsByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]entity.PaymentWithUser, int, error)
 }
+
 
 type OrderCacheRepo interface {
 	GetByOrderID(ctx context.Context, orderID uuid.UUID) (entity.OrderInfo, error)

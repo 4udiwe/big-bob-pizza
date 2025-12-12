@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/4udiwe/big-bob-pizza/payment-service/internal/entity"
 	"github.com/4udiwe/big-bob-pizza/order-service/pkg/postgres"
+	"github.com/4udiwe/big-bob-pizza/payment-service/internal/entity"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -126,3 +126,83 @@ func (r *Repository) UpdateStatus(ctx context.Context, paymentID uuid.UUID, stat
 	return nil
 }
 
+// GetAllPayments возвращает список платежей с пагинацией и фильтрацией
+func (r *Repository) GetAllPayments(ctx context.Context, limit, offset int, status *entity.PaymentStatusName, userID *uuid.UUID) ([]entity.PaymentWithUser, int, error) {
+	logrus.Infof("PaymentRepository.GetAllPayments: limit=%d offset=%d", limit, offset)
+
+	// Строим условия для WHERE
+	whereConditions := squirrel.And{}
+	if status != nil {
+		whereConditions = append(whereConditions, squirrel.Expr("s.name = ?", string(*status)))
+	}
+	if userID != nil {
+		whereConditions = append(whereConditions, squirrel.Eq{"oc.user_id": *userID})
+	}
+
+	// Получаем общее количество
+	countQuery := r.Builder.
+		Select("COUNT(*)").
+		From("payments p").
+		Join("payment_status s ON s.id = p.status_id").
+		LeftJoin("order_cache oc ON oc.order_id = p.order_id")
+
+	if len(whereConditions) > 0 {
+		countQuery = countQuery.Where(whereConditions)
+	}
+
+	countSQL, countArgs, _ := countQuery.ToSql()
+
+	var total int
+	err := r.GetTxManager(ctx).QueryRow(ctx, countSQL, countArgs...).Scan(&total)
+	if err != nil {
+		logrus.Errorf("PaymentRepository.GetAllPayments: count error: %v", err)
+		return nil, 0, err
+	}
+
+	// Получаем страницу данных
+	query := r.Builder.
+		Select(`
+			p.id, p.order_id, p.amount, p.currency,
+			p.status_id, s.name AS status_name,
+			p.failure_reason, p.created_at, p.updated_at,
+			oc.user_id
+		`).
+		From("payments p").
+		Join("payment_status s ON s.id = p.status_id").
+		LeftJoin("order_cache oc ON oc.order_id = p.order_id")
+
+	if len(whereConditions) > 0 {
+		query = query.Where(whereConditions)
+	}
+
+	querySQL, args, _ := query.
+		OrderBy("p.created_at DESC").
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
+		ToSql()
+
+	rows, err := r.GetTxManager(ctx).Query(ctx, querySQL, args...)
+	if err != nil {
+		logrus.Errorf("PaymentRepository.GetAllPayments: query error: %v", err)
+		return nil, 0, err
+	}
+
+	payments, err := pgx.CollectRows(rows, pgx.RowToStructByName[RowPaymentWithUser])
+	if err != nil {
+		logrus.Errorf("PaymentRepository.GetAllPayments: scan error: %v", err)
+		return nil, 0, err
+	}
+
+	result := make([]entity.PaymentWithUser, len(payments))
+	for i, p := range payments {
+		result[i] = p.ToPaymentWithUser()
+	}
+
+	logrus.Infof("PaymentRepository.GetAllPayments: fetched %d payments", len(result))
+	return result, total, nil
+}
+
+// GetPaymentsByUserID возвращает платежи пользователя с пагинацией
+func (r *Repository) GetPaymentsByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]entity.PaymentWithUser, int, error) {
+	return r.GetAllPayments(ctx, limit, offset, nil, &userID)
+}

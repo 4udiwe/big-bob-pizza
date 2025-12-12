@@ -30,3 +30,7 @@ type Payment struct {
 	UpdatedAt     time.Time
 }
 
+type PaymentWithUser struct {
+	Payment Payment
+	UserID  *uuid.UUID
+}

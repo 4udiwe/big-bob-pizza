@@ -27,16 +27,29 @@ type Request struct {
 }
 
 type Response struct {
-	ID            uuid.UUID           `json:"id"`
-	OrderID       uuid.UUID           `json:"orderId"`
-	Amount        float64             `json:"amount"`
-	Currency      string              `json:"currency"`
+	ID            uuid.UUID            `json:"id"`
+	OrderID       uuid.UUID            `json:"orderId"`
+	Amount        float64              `json:"amount"`
+	Currency      string               `json:"currency"`
 	Status        entity.PaymentStatus `json:"status"`
-	FailureReason *string             `json:"failureReason,omitempty"`
-	CreatedAt     time.Time           `json:"createdAt"`
-	UpdatedAt     time.Time           `json:"updatedAt"`
+	FailureReason *string              `json:"failureReason,omitempty"`
+	CreatedAt     time.Time            `json:"createdAt"`
+	UpdatedAt     time.Time            `json:"updatedAt"`
 }
 
+// ProcessPayment godoc
+// @Summary Провести оплату заказа
+// @Description Обрабатывает платеж для указанного заказа. Заказ должен быть доступен для оплаты (создан не более 30 минут назад)
+// @Tags payments
+// @Accept json
+// @Produce json
+// @Param request body Request true "Данные для оплаты"
+// @Success 200 {object} Response
+// @Failure 400 {object} echo.HTTPError
+// @Failure 404 {object} echo.HTTPError
+// @Failure 409 {object} echo.HTTPError
+// @Failure 500 {object} echo.HTTPError
+// @Router /payments [post]
 func (h *handler) Handle(c echo.Context, in Request) error {
 	payment, err := h.s.ProcessPayment(c.Request().Context(), in.OrderID, in.Amount)
 	if err != nil {
@@ -65,4 +78,3 @@ func (h *handler) Handle(c echo.Context, in Request) error {
 
 	return c.JSON(http.StatusOK, resp)
 }
-

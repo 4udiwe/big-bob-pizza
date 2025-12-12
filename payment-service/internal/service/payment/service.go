@@ -147,3 +147,23 @@ func (s *Service) GetPaymentByOrderID(ctx context.Context, orderID uuid.UUID) (e
 	}
 	return payment, nil
 }
+
+func (s *Service) GetAllPayments(ctx context.Context, limit, offset int, status *entity.PaymentStatusName, userID *uuid.UUID) ([]entity.PaymentWithUser, int, error) {
+	log.Infof("PaymentService.GetAllPayments: limit=%d offset=%d", limit, offset)
+	payments, total, err := s.PaymentRepo.GetAllPayments(ctx, limit, offset, status, userID)
+	if err != nil {
+		log.Errorf("PaymentService.GetAllPayments: error: %v", err)
+		return nil, 0, err
+	}
+	return payments, total, nil
+}
+
+func (s *Service) GetPaymentsByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]entity.PaymentWithUser, int, error) {
+	log.Infof("PaymentService.GetPaymentsByUserID: userID=%s limit=%d offset=%d", userID, limit, offset)
+	payments, total, err := s.PaymentRepo.GetPaymentsByUserID(ctx, userID, limit, offset)
+	if err != nil {
+		log.Errorf("PaymentService.GetPaymentsByUserID: error: %v", err)
+		return nil, 0, err
+	}
+	return payments, total, nil
+}
