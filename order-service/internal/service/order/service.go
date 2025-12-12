@@ -65,8 +65,8 @@ func (s *Service) CreateOrder(ctx context.Context, ord entity.Order) (entity.Ord
 		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   created.ID,
-			EventType:     "created",
-			Payload:       map[string]any{"orderId": created.ID},
+			EventType:     "order.created",
+			Payload:       map[string]any{"orderId": created.ID, "userId": created.CustomerID, "totalPrice": created.TotalAmount},
 			Status:        entity.OutboxStatus{ID: 1, Name: "pending"},
 			CreatedAt:     time.Now(),
 		}

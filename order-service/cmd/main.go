@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/4udiwe/big-bob-pizza/order-service/app"
+	"github.com/4udiwe/big-bob-pizza/order-service/internal/app"
 )
 
 func main() {
