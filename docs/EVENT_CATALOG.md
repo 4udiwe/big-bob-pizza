@@ -53,9 +53,6 @@
 {
   "orderId": "UUID",
   "userId": "UUID",
-  "items": [
-    { "dishId": "UUID", "quantity": 1 }
-  ],
   "totalPrice": 123.45
 }
 ```
