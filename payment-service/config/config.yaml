@@ -1,0 +1,40 @@
+app:
+  name: "big-bob-pizza-payment-service"
+  version: "1.0.0"
+
+http:
+  port: "8081"
+
+logger:
+  level: "debug"
+
+postgres:
+  connect_timeout: 5s
+
+kafka:
+  brokers:
+    - "localhost:9092"
+  topics:
+    order_events: "order.events"
+    payment_events: "payment.events"
+
+  producer:
+    required_acks: 1
+    batch_size: 5
+    batch_timeout: 50ms
+    compression: "snappy"
+
+  consumer:
+    group_id: "payment-service"
+    max_wait: 50ms
+    session_timeout: 10s
+    heartbeat_interval: 3s
+    commit_interval: 1s
+
+outbox:
+  topic: "payment.events"
+  batch_limit: 5
+  interval: 3s
+  reque_batch_limit: 10
+  reque_interval: 30s
+
