@@ -21,6 +21,10 @@ func ParseOrderEvent(data []byte) (*IncomingEvent, error) {
 
 	var p Payload
 
+	if env.Data == nil {
+		return nil, fmt.Errorf("invalid payload for %s: empty data", env.EventType)
+	}
+
 	if err := json.Unmarshal(env.Data, &p); err != nil {
 		return nil, fmt.Errorf("invalid payload for %s: %w", env.EventType, err)
 	}

@@ -61,6 +61,18 @@ type ResponseOrderItem struct {
 	Notes        string    `json:"notes"`
 }
 
+// CreateOrder godoc
+// @Summary Создать новый заказ
+// @Description Создает новый заказ для указанного пользователя. После создания публикуется событие order.created
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param request body Request true "Данные заказа"
+// @Success 201 {object} Response
+// @Failure 400 {string} string "Ошибка валидации"
+// @Failure 409 {string} string "Заказ уже существует"
+// @Failure 500 {string} string "Внутренняя ошибка сервера"
+// @Router /orders [post]
 func (h *handler) Handle(c echo.Context, in Request) error {
 
 	order := entity.Order{

@@ -1,0 +1,508 @@
+basePath: /
+definitions:
+  entity.OrderStatus:
+    properties:
+      id:
+        type: integer
+      name:
+        $ref: '#/definitions/entity.StatusName'
+    type: object
+  entity.StatusName:
+    enum:
+    - created
+    - paid
+    - prepearing
+    - prepeared
+    - delivering
+    - completed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - StatusCreated
+    - StatusPaid
+    - StatusPrepearing
+    - StatusPrepeared
+    - StatusDelivering
+    - StatusCompleted
+    - StatusCancelled
+  get_active_orders_by_user.OrderItemResponse:
+    properties:
+      amount:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      productId:
+        type: string
+      productName:
+        type: string
+      productPrice:
+        type: number
+      totalPrice:
+        type: number
+    type: object
+  get_active_orders_by_user.OrderResponse:
+    properties:
+      createdAt:
+        type: string
+      currency:
+        type: string
+      customerId:
+        type: string
+      deliveryId:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/get_active_orders_by_user.OrderItemResponse'
+        type: array
+      paymentId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.OrderStatus'
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  get_active_orders_by_user.OrdersResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/get_active_orders_by_user.OrderResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  get_all_orders.OrderItemResponse:
+    properties:
+      amount:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      productId:
+        type: string
+      productName:
+        type: string
+      productPrice:
+        type: number
+      totalPrice:
+        type: number
+    type: object
+  get_all_orders.OrderResponse:
+    properties:
+      createdAt:
+        type: string
+      currency:
+        type: string
+      customerId:
+        type: string
+      deliveryId:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/get_all_orders.OrderItemResponse'
+        type: array
+      paymentId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.OrderStatus'
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  get_all_orders.OrdersResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      orders:
+        items:
+          $ref: '#/definitions/get_all_orders.OrderResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  get_order.Response:
+    properties:
+      createdAt:
+        type: string
+      currency:
+        type: string
+      customerId:
+        type: string
+      deliveryId:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/get_order.ResponseOrderItem'
+        type: array
+      paymentId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.OrderStatus'
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  get_order.ResponseOrderItem:
+    properties:
+      amount:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      productId:
+        type: string
+      productName:
+        type: string
+      productPrice:
+        type: number
+      totalPrice:
+        type: number
+    type: object
+  get_orders_by_user.OrderItemResponse:
+    properties:
+      amount:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      productId:
+        type: string
+      productName:
+        type: string
+      productPrice:
+        type: number
+      totalPrice:
+        type: number
+    type: object
+  get_orders_by_user.OrderResponse:
+    properties:
+      createdAt:
+        type: string
+      currency:
+        type: string
+      customerId:
+        type: string
+      deliveryId:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/get_orders_by_user.OrderItemResponse'
+        type: array
+      paymentId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.OrderStatus'
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  get_orders_by_user.OrdersResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      orders:
+        items:
+          $ref: '#/definitions/get_orders_by_user.OrderResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  post_order.Request:
+    properties:
+      currency:
+        type: string
+      customerId:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/post_order.RequestOrderItem'
+        type: array
+      totalAmount:
+        minimum: 0
+        type: number
+    required:
+    - currency
+    - customerId
+    - items
+    - totalAmount
+    type: object
+  post_order.RequestOrderItem:
+    properties:
+      amount:
+        minimum: 1
+        type: integer
+      notes:
+        type: string
+      productId:
+        type: string
+      productName:
+        type: string
+      productPrice:
+        minimum: 0
+        type: number
+      totalPrice:
+        minimum: 0
+        type: number
+    required:
+    - amount
+    - productId
+    - productName
+    - productPrice
+    - totalPrice
+    type: object
+  post_order.Response:
+    properties:
+      createdAt:
+        type: string
+      currency:
+        type: string
+      customerId:
+        type: string
+      deliveryId:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/post_order.ResponseOrderItem'
+        type: array
+      paymentId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.OrderStatus'
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  post_order.ResponseOrderItem:
+    properties:
+      amount:
+        type: integer
+      id:
+        type: string
+      notes:
+        type: string
+      productId:
+        type: string
+      productName:
+        type: string
+      productPrice:
+        type: number
+      totalPrice:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@bigbobpizza.com
+    name: API Support
+  description: API для управления заказами в системе Big Bob Pizza
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Big Bob Pizza - Order Service API
+  version: "1.0"
+paths:
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех заказов в системе с пагинацией. Требуются
+        права администратора
+      parameters:
+      - default: 20
+        description: Количество записей на странице
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение для пагинации
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_all_orders.OrdersResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить все заказы (админ)
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Создает новый заказ для указанного пользователя. После создания
+        публикуется событие order.created
+      parameters:
+      - description: Данные заказа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/post_order.Request'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/post_order.Response'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "409":
+          description: Заказ уже существует
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Создать новый заказ
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о заказе по его идентификатору
+      parameters:
+      - description: ID заказа (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_order.Response'
+        "404":
+          description: Заказ не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить заказ по ID
+      tags:
+      - orders
+  /orders/user/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список заказов пользователя с пагинацией
+      parameters:
+      - description: ID пользователя (UUID)
+        in: path
+        name: userId
+        required: true
+        type: string
+      - default: 20
+        description: Количество записей на странице
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение для пагинации
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_orders_by_user.OrdersResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить заказы пользователя
+      tags:
+      - orders
+  /orders/user/{userId}/active:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список активных (не завершенных) заказов пользователя
+      parameters:
+      - description: ID пользователя (UUID)
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_active_orders_by_user.OrdersResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "404":
+          description: Заказ не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить активные заказы пользователя
+      tags:
+      - orders
+schemes:
+- http
+- https
+swagger: "2.0"

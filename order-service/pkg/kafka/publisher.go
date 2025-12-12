@@ -31,19 +31,28 @@ func NewKafkaPublisher(brokers []string) *KafkaPublisher {
 //
 // Ключ сообщения (Key) — это eventType, чтобы события одного типа лежали последовательно в партициях.
 func (p *KafkaPublisher) Publish(ctx context.Context, topic string, eventType string, payload any) error {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return err
+	var raw json.RawMessage
+	switch v := payload.(type) {
+	case json.RawMessage:
+		raw = v
+	case []byte:
+		raw = json.RawMessage(v)
+	default:
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		raw = json.RawMessage(data)
 	}
 
 	envelope := Envelope{
 		EventID:    uuid.New(),
 		EventType:  eventType,
 		OccurredAt: time.Now().UTC(),
-		Data:       json.RawMessage(data),
+		Data:       raw,
 	}
 
-	raw, err := json.Marshal(envelope)
+	raw, err := json.Marshal(&envelope)
 	if err != nil {
 		return err
 	}

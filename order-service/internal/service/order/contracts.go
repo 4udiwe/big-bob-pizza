@@ -18,7 +18,7 @@ type OrderRepo interface {
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (entity.Order, error)
 	// Return page of found orders sorted by creation time, total items, and error.
 	GetAllOrders(ctx context.Context, limit, offset int) (orders []entity.Order, total int, err error)
-	GetOrdersByUserID(ctx context.Context, userID uuid.UUID) (orders []entity.Order, err error)
+	GetOrdersByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (orders []entity.Order, total int, err error)
 }
 
 type ItemsRepo interface {
