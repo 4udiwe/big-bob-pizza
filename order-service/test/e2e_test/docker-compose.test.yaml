@@ -1,0 +1,71 @@
+version: "3.9"
+
+volumes:
+  app_logs:
+
+networks:
+  net:
+    driver: bridge
+
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    environment:
+      CONFIG_PATH: /app/config/config.yaml
+      POSTGRES_URL: postgres://test_user:test_password@postgres_test:5432/test_db
+      REDIS_ADDR: redis_test:6379
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      postgres_test:
+        condition: service_healthy
+      redis_test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - ../../config/config.yaml:/app/config/config.yaml:ro
+      - app_logs:/logs
+    networks:
+      - net
+
+  postgres_test:
+    image: postgres:17.4-alpine3.21
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - net
+
+  redis_test:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - net
+
+  e2e:
+    build:
+      context: ../../
+      dockerfile: test/e2e_test/Dockerfile
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - net

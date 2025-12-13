@@ -358,6 +358,9 @@ func (s *Service) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entity.O
 	// Fallback to Postgres
 	ordFull, err := s.OrderRepo.GetOrderByID(ctx, orderID)
 	if err != nil {
+		if errors.Is(err, repository.ErrOrderNotFound){
+			return entity.Order{}, ErrOrderNotFound
+		}
 		log.Infof("OrderService.GetOrderByID: error: %v", err)
 		return entity.Order{}, err
 	}

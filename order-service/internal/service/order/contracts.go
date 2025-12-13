@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate go tool mockgen -source=contracts.go -destination=mocks/mocks.go -package=mocks
+
 type OrderRepo interface {
 	// Inserts only order data (without order items).
 	// Receives entity with order data.
