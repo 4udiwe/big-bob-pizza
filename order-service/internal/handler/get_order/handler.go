@@ -1,11 +1,13 @@
 package get_order
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
 	h "github.com/4udiwe/big-bob-pizza/order-service/internal/handler"
+	service "github.com/4udiwe/big-bob-pizza/order-service/internal/service/order"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
@@ -39,6 +41,9 @@ func (h *handler) Handle(c echo.Context) error {
 
 	order, err := h.s.GetOrderByID(c.Request().Context(), orderID)
 	if err != nil {
+		if errors.Is(err, service.ErrOrderNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, "order not found")
+		}
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 

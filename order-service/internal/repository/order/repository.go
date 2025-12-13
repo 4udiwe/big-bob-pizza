@@ -3,6 +3,8 @@ package order_repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
@@ -252,31 +254,42 @@ func (r *Repository) GetAllOrders(ctx context.Context, limit, offset int) (order
 	})
 
 	// Get items for orders
-	itemsQuery, itemsArgs, _ := r.Builder.
-		Select(`
-			id,
-			order_id,
-			product_id,
-			product_name,
-			product_price,
-			amount,
-			total_price,
-			notes
-		`).
-		From("order_item").
-		Where("order_id IN (?)", orderIDs).
-		ToSql()
+	// Build IN clause manually for proper UUID array handling
+	var rowItems []RowItem
+	if len(orderIDs) > 0 {
+		// Build placeholders for IN clause
+		placeholders := make([]string, len(orderIDs))
+		args := make([]interface{}, len(orderIDs))
+		for i, id := range orderIDs {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+			args[i] = id
+		}
 
-	itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, itemsArgs...)
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetAllOrders: items query error: %v", err)
-		return nil, 0, err
-	}
+		itemsQuery := fmt.Sprintf(`
+			SELECT
+				id,
+				order_id,
+				product_id,
+				product_name,
+				product_price,
+				amount,
+				total_price,
+				notes
+			FROM order_item
+			WHERE order_id IN (%s)
+		`, strings.Join(placeholders, ", "))
 
-	rowItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetAllOrders: items scan error: %v", err)
-		return nil, 0, err
+		itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, args...)
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetAllOrders: items query error: %v", err)
+			return nil, 0, err
+		}
+
+		rowItems, err = pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetAllOrders: items scan error: %v", err)
+			return nil, 0, err
+		}
 	}
 
 	// Group items by OrderID
@@ -357,31 +370,42 @@ func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, li
 	})
 
 	// Get items for orders
-	itemsQuery, itemsArgs, _ := r.Builder.
-		Select(`
-			id,
-			order_id,
-			product_id,
-			product_name,
-			product_price,
-			amount,
-			total_price,
-			notes
-		`).
-		From("order_item").
-		Where("order_id IN (?)", orderIDs).
-		ToSql()
+	// Build IN clause manually for proper UUID array handling
+	var rowItems []RowItem
+	if len(orderIDs) > 0 {
+		// Build placeholders for IN clause
+		placeholders := make([]string, len(orderIDs))
+		args := make([]interface{}, len(orderIDs))
+		for i, id := range orderIDs {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+			args[i] = id
+		}
 
-	itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, itemsArgs...)
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetOrdersByUserID: items query error: %v", err)
-		return nil, 0, err
-	}
+		itemsQuery := fmt.Sprintf(`
+			SELECT
+				id,
+				order_id,
+				product_id,
+				product_name,
+				product_price,
+				amount,
+				total_price,
+				notes
+			FROM order_item
+			WHERE order_id IN (%s)
+		`, strings.Join(placeholders, ", "))
 
-	rowItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetOrdersByUserID: items scan error: %v", err)
-		return nil, 0, err
+		itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, args...)
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetOrdersByUserID: items query error: %v", err)
+			return nil, 0, err
+		}
+
+		rowItems, err = pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetOrdersByUserID: items scan error: %v", err)
+			return nil, 0, err
+		}
 	}
 
 	// Group items by OrderID
