@@ -1,0 +1,30 @@
+app:
+  name: "big-bob-pizza-analytics-service"
+  version: "1.0.0"
+
+http:
+  port: "8083"
+
+logger:
+  level: "debug"
+
+postgres:
+  connect_timeout: 5s
+
+kafka:
+  brokers:
+    - "localhost:9092"
+  topics:
+    order_events: "order.events"
+
+  consumer:
+    group_id: "analytics-service"
+    max_wait: 50ms
+    session_timeout: 10s
+    heartbeat_interval: 3s
+    commit_interval: 1s
+
+prometheus:
+  enabled: true
+  path: "/metrics"
+

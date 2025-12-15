@@ -8,6 +8,7 @@
 
 - **order-service** (порт 8080) - управление заказами
 - **payment-service** (порт 8081) - обработка платежей
+- **analytics-service** (порт 8083) - сбор и анализ данных о заказах
 
 ## Запуск через Docker Compose
 
@@ -20,11 +21,15 @@ docker-compose up -d
 Это запустит все необходимые сервисы:
 - PostgreSQL для order-service (порт 5432)
 - PostgreSQL для payment-service (порт 5433)
+- PostgreSQL для analytics-service (порт 5434)
 - Redis для order-service (порт 6379)
 - Kafka + Zookeeper (порты 9092, 2181)
 - Kafka UI (порт 8082)
+- Prometheus (порт 9090)
+- Grafana (порт 3000)
 - order-service (порт 8080)
 - payment-service (порт 8081)
+- analytics-service (порт 8083)
 
 ### Переменные окружения
 
@@ -52,6 +57,21 @@ REDIS_PORT=6379
 
 # Kafka UI
 KAFKA_UI_PORT=8082
+
+# Analytics Service Database
+ANALYTICS_DB_USER=analytics
+ANALYTICS_DB_PASSWORD=analyticspass
+ANALYTICS_DB_NAME=analyticsdb
+ANALYTICS_DB_PORT=5434
+ANALYTICS_APP_PORT=8083
+ANALYTICS_SERVER_PORT=8083
+
+# Prometheus
+PROMETHEUS_PORT=9090
+
+# Grafana
+GRAFANA_PORT=3000
+GRAFANA_PASSWORD=admin
 ```
 
 
@@ -66,6 +86,17 @@ KAFKA_UI_PORT=8082
 ### Payment Service (http://localhost:8081)
 
 - `POST /payments` - проведение оплаты заказа
+- `GET /payments` - получить список платежей
+- `GET /payments/{id}` - получить платеж по ID
+- `GET /payments/order/{orderId}` - получить платеж по ID заказа
+- `GET /health` - health check
+
+### Analytics Service (http://localhost:8083)
+
+- `GET /analytics/stats` - получить статистику по событиям за период
+- `GET /analytics/revenue` - получить выручку за период
+- `GET /analytics/orders/{orderId}/events` - получить все события для заказа
+- `GET /metrics` - Prometheus метрики
 - `GET /health` - health check
 
 ## Kafka Topics
