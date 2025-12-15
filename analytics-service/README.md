@@ -18,7 +18,10 @@ Analytics Service собирает и хранит данные о событи�
 ## API Документация
 
 Полная документация API доступна через Swagger UI:
-- **Swagger UI**: http://localhost:8083/swagger/index.html
+
+http://localhost:8083/swagger/index.html
+
+или в [docs/swagger.yaml](docs/swagger.yaml)
 
 ### Основные эндпоинты
 

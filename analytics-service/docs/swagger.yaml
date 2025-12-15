@@ -1,0 +1,188 @@
+basePath: /
+definitions:
+  get_order_events.OrderEventResponse:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      eventId:
+        type: string
+      eventType:
+        type: string
+      id:
+        type: string
+      occurredAt:
+        type: string
+      orderId:
+        type: string
+      paymentId:
+        type: string
+      reason:
+        type: string
+      userId:
+        type: string
+    type: object
+  get_order_events.OrderEventsResponse:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/get_order_events.OrderEventResponse'
+        type: array
+      orderId:
+        type: string
+    type: object
+  get_revenue.RevenueResponse:
+    properties:
+      endDate:
+        type: string
+      revenue:
+        type: number
+      startDate:
+        type: string
+    type: object
+  get_stats.StatResponse:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+      eventType:
+        type: string
+      totalAmount:
+        type: number
+      uniqueOrders:
+        type: integer
+      uniqueUsers:
+        type: integer
+    type: object
+  get_stats.StatsResponse:
+    properties:
+      endDate:
+        type: string
+      startDate:
+        type: string
+      stats:
+        items:
+          $ref: '#/definitions/get_stats.StatResponse'
+        type: array
+    type: object
+host: localhost:8083
+info:
+  contact:
+    email: support@bigbobpizza.com
+    name: API Support
+  description: API для аналитики в системе Big Bob Pizza
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Big Bob Pizza - Analytics Service API
+  version: "1.0"
+paths:
+  /analytics/orders/{orderId}/events:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все события для указанного заказа
+      parameters:
+      - description: ID заказа (UUID)
+        format: uuid
+        in: path
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_order_events.OrderEventsResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить события заказа
+      tags:
+      - analytics
+  /analytics/revenue:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает общую выручку от созданных заказов за указанный период
+      parameters:
+      - description: Начальная дата (RFC3339)
+        format: date-time
+        in: query
+        name: startDate
+        required: true
+        type: string
+      - description: Конечная дата (RFC3339)
+        format: date-time
+        in: query
+        name: endDate
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_revenue.RevenueResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить выручку за период
+      tags:
+      - analytics
+  /analytics/stats:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает статистику по событиям заказов за указанный период
+      parameters:
+      - description: Начальная дата (RFC3339)
+        format: date-time
+        in: query
+        name: startDate
+        required: true
+        type: string
+      - description: Конечная дата (RFC3339)
+        format: date-time
+        in: query
+        name: endDate
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_stats.StatsResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить статистику по заказам
+      tags:
+      - analytics
+schemes:
+- http
+- https
+swagger: "2.0"

@@ -73,4 +73,3 @@ func pgxPoolToStdlib(ctx context.Context, pool *pgxpool.Pool) (*sql.DB, error) {
 	db := stdlib.OpenDB(*conn.Conn().Config())
 	return db, nil
 }
-

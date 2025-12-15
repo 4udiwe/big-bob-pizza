@@ -1,0 +1,281 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API для аналитики в системе Big Bob Pizza",
+        "title": "Big Bob Pizza - Analytics Service API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "email": "support@bigbobpizza.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8083",
+    "basePath": "/",
+    "paths": {
+        "/analytics/orders/{orderId}/events": {
+            "get": {
+                "description": "Возвращает все события для указанного заказа",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Получить события заказа",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID заказа (UUID)",
+                        "name": "orderId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_order_events.OrderEventsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/revenue": {
+            "get": {
+                "description": "Возвращает общую выручку от созданных заказов за указанный период",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Получить выручку за период",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Начальная дата (RFC3339)",
+                        "name": "startDate",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Конечная дата (RFC3339)",
+                        "name": "endDate",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_revenue.RevenueResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/stats": {
+            "get": {
+                "description": "Возвращает статистику по событиям заказов за указанный период",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Получить статистику по заказам",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Начальная дата (RFC3339)",
+                        "name": "startDate",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Конечная дата (RFC3339)",
+                        "name": "endDate",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/get_stats.StatsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка валидации",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "get_order_events.OrderEventResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "eventId": {
+                    "type": "string"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "occurredAt": {
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "paymentId": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "get_order_events.OrderEventsResponse": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/get_order_events.OrderEventResponse"
+                    }
+                },
+                "orderId": {
+                    "type": "string"
+                }
+            }
+        },
+        "get_revenue.RevenueResponse": {
+            "type": "object",
+            "properties": {
+                "endDate": {
+                    "type": "string"
+                },
+                "revenue": {
+                    "type": "number"
+                },
+                "startDate": {
+                    "type": "string"
+                }
+            }
+        },
+        "get_stats.StatResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "totalAmount": {
+                    "type": "number"
+                },
+                "uniqueOrders": {
+                    "type": "integer"
+                },
+                "uniqueUsers": {
+                    "type": "integer"
+                }
+            }
+        },
+        "get_stats.StatsResponse": {
+            "type": "object",
+            "properties": {
+                "endDate": {
+                    "type": "string"
+                },
+                "startDate": {
+                    "type": "string"
+                },
+                "stats": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/get_stats.StatResponse"
+                    }
+                }
+            }
+        }
+    }
+}

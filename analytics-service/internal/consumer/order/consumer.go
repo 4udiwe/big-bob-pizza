@@ -192,4 +192,3 @@ func (c *Consumer) handleOrderCompleted(ctx context.Context, env kafka.Envelope)
 	logrus.Infof("OrderAnalyticsConsumer: processed order.completed orderID=%s", payload.OrderID)
 	return nil
 }
-

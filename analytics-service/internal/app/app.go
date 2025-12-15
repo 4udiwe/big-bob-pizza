@@ -16,7 +16,6 @@ import (
 	"github.com/4udiwe/big-bob-pizza/order-service/pkg/postgres"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type App struct {
@@ -120,4 +119,3 @@ func (app *App) Start() {
 
 	log.Info("Shutting down...")
 }
-

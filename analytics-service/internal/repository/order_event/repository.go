@@ -8,9 +8,7 @@ import (
 
 	"github.com/4udiwe/big-bob-pizza/analytics-service/internal/entity"
 	"github.com/4udiwe/big-bob-pizza/order-service/pkg/postgres"
-	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/sirupsen/logrus"
@@ -204,4 +202,3 @@ type OrderStats struct {
 	UniqueUsers  int
 	TotalAmount  *float64
 }
-

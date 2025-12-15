@@ -3,9 +3,9 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'analytics-service'
+  - job_name: "analytics-service"
     static_configs:
-      - targets: ['analytics-service:8083']
+      - targets: ["analytics-service:8083"]
         labels:
-          service: 'analytics'
-
+          service: "analytics"
+    metrics_path: /metrics
