@@ -3,6 +3,8 @@ package order_repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/4udiwe/big-bob-pizza/order-service/internal/entity"
@@ -79,7 +81,7 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, s
 
 	query, args, _ := r.Builder.
 		Update("orders").
-		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(status))).
+		Set("status_id", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(status))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
 		ToSql()
@@ -101,7 +103,7 @@ func (r *Repository) UpdateOrderPayment(ctx context.Context, orderID, paymentID 
 	query, args, _ := r.Builder.
 		Update("orders").
 		Set("payment_id", paymentID). // Set status to Paid
-		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusPaid))).
+		Set("status_id", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusPaid))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
 		ToSql()
@@ -123,7 +125,7 @@ func (r *Repository) UpdateOrderDelivery(ctx context.Context, orderID, deliveryI
 	query, args, _ := r.Builder.
 		Update("orders").
 		Set("delivery_id", deliveryID). // Set status to Delivering
-		Set("status", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusDelivering))).
+		Set("status_id", squirrel.Expr("(SELECT id FROM order_status WHERE name = ?)", string(entity.StatusDelivering))).
 		Set("updated_at", time).
 		Where("id = ?", orderID).
 		ToSql()
@@ -143,9 +145,10 @@ func (r *Repository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entit
 	logrus.Infof("OrderRepository.GetOrderByID: orderID=%v", orderID)
 
 	query, args, _ := r.Builder.
-		Select("id", "customer_id", "status", "payment_id", "delivery_id", "total_amount", "currency", "created_at", "updated_at").
-		From("orders").
-		Where("id = ?", orderID).
+		Select("o.id", "o.customer_id", "o.status_id", "s.name as status_name", "o.payment_id", "o.delivery_id", "o.total_amount", "o.currency", "o.created_at", "o.updated_at").
+		From("orders AS o").
+		Join("order_status AS s ON o.status_id = s.id").
+		Where("o.id = ?", orderID).
 		ToSql()
 
 	rows, err := r.GetTxManager(ctx).Query(ctx, query, args...)
@@ -167,8 +170,8 @@ func (r *Repository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entit
 	order := rowOrder.ToEntity()
 
 	query, args, _ = r.Builder.
-		Select("id, product_id, product_name, product_price, amount, total_price, notes").
-		From("order_items").
+		Select("id, order_id, product_id, product_name, product_price, amount, total_price, notes").
+		From("order_item").
 		Where("order_id = ?", orderID).
 		ToSql()
 
@@ -251,31 +254,42 @@ func (r *Repository) GetAllOrders(ctx context.Context, limit, offset int) (order
 	})
 
 	// Get items for orders
-	itemsQuery, itemsArgs, _ := r.Builder.
-		Select(`
-			id,
-			order_id,
-			product_id,
-			product_name,
-			product_price,
-			amount,
-			total_price,
-			notes
-		`).
-		From("order_item").
-		Where("order_id IN (?)", orderIDs).
-		ToSql()
+	// Build IN clause manually for proper UUID array handling
+	var rowItems []RowItem
+	if len(orderIDs) > 0 {
+		// Build placeholders for IN clause
+		placeholders := make([]string, len(orderIDs))
+		args := make([]interface{}, len(orderIDs))
+		for i, id := range orderIDs {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+			args[i] = id
+		}
 
-	itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, itemsArgs...)
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetAllOrders: items query error: %v", err)
-		return nil, 0, err
-	}
+		itemsQuery := fmt.Sprintf(`
+			SELECT
+				id,
+				order_id,
+				product_id,
+				product_name,
+				product_price,
+				amount,
+				total_price,
+				notes
+			FROM order_item
+			WHERE order_id IN (%s)
+		`, strings.Join(placeholders, ", "))
 
-	rowItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetAllOrders: items scan error: %v", err)
-		return nil, 0, err
+		itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, args...)
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetAllOrders: items query error: %v", err)
+			return nil, 0, err
+		}
+
+		rowItems, err = pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetAllOrders: items scan error: %v", err)
+			return nil, 0, err
+		}
 	}
 
 	// Group items by OrderID
@@ -294,8 +308,21 @@ func (r *Repository) GetAllOrders(ctx context.Context, limit, offset int) (order
 	return orders, total, nil
 }
 
-func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID) (orders []entity.Order, err error) {
-	logrus.Infof("OrderRepository.GetOrdersByUserID: userID = %v", userID)
+func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) (orders []entity.Order, total int, err error) {
+	logrus.Infof("OrderRepository.GetOrdersByUserID: userID = %v limit=%d offset=%d", userID, limit, offset)
+
+	// Get total count
+	countQuery, countArgs, _ := r.Builder.
+		Select("COUNT(*)").
+		From(`"orders"`).
+		Where("customer_id = ?", userID).
+		ToSql()
+
+	err = r.GetTxManager(ctx).QueryRow(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		logrus.Errorf("OrderRepository.GetOrdersByUserID: count query error: %v", err)
+		return nil, 0, err
+	}
 
 	// Get page of orders
 	query, args, _ := r.Builder.
@@ -314,22 +341,24 @@ func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID) (o
 		From(`"orders"`).
 		OrderBy("created_at DESC").
 		Where("customer_id = ?", userID).
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
 		ToSql()
 
 	rows, err := r.GetTxManager(ctx).Query(ctx, query, args...)
 	if err != nil {
 		logrus.Errorf("OrderRepository.GetOrdersByUserID: orders query error: %v", err)
-		return nil, err
+		return nil, 0, err
 	}
 
 	rowOrders, err := pgx.CollectRows(rows, pgx.RowToStructByName[RowOrder])
 	if err != nil {
 		logrus.Errorf("OrderRepository.GetOrdersByUserID: orders scan error: %v", err)
-		return nil, err
+		return nil, 0, err
 	}
 
 	if len(rowOrders) == 0 {
-		return []entity.Order{}, nil
+		return []entity.Order{}, total, nil
 	}
 
 	var orderIDs []uuid.UUID
@@ -341,31 +370,42 @@ func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID) (o
 	})
 
 	// Get items for orders
-	itemsQuery, itemsArgs, _ := r.Builder.
-		Select(`
-			id,
-			order_id,
-			product_id,
-			product_name,
-			product_price,
-			amount,
-			total_price,
-			notes
-		`).
-		From("order_item").
-		Where("order_id IN (?)", orderIDs).
-		ToSql()
+	// Build IN clause manually for proper UUID array handling
+	var rowItems []RowItem
+	if len(orderIDs) > 0 {
+		// Build placeholders for IN clause
+		placeholders := make([]string, len(orderIDs))
+		args := make([]interface{}, len(orderIDs))
+		for i, id := range orderIDs {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+			args[i] = id
+		}
 
-	itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, itemsArgs...)
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetOrdersByUserID: items query error: %v", err)
-		return nil, err
-	}
+		itemsQuery := fmt.Sprintf(`
+			SELECT
+				id,
+				order_id,
+				product_id,
+				product_name,
+				product_price,
+				amount,
+				total_price,
+				notes
+			FROM order_item
+			WHERE order_id IN (%s)
+		`, strings.Join(placeholders, ", "))
 
-	rowItems, err := pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
-	if err != nil {
-		logrus.Errorf("OrderRepository.GetOrdersByUserID: items scan error: %v", err)
-		return nil, err
+		itemRows, err := r.GetTxManager(ctx).Query(ctx, itemsQuery, args...)
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetOrdersByUserID: items query error: %v", err)
+			return nil, 0, err
+		}
+
+		rowItems, err = pgx.CollectRows(itemRows, pgx.RowToStructByName[RowItem])
+		if err != nil {
+			logrus.Errorf("OrderRepository.GetOrdersByUserID: items scan error: %v", err)
+			return nil, 0, err
+		}
 	}
 
 	// Group items by OrderID
@@ -381,5 +421,5 @@ func (r *Repository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID) (o
 	}
 
 	logrus.Infof("OrderRepository.GetOrdersByUserID: fetched %d orders", len(orders))
-	return orders, nil
+	return orders, total, nil
 }

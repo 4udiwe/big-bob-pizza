@@ -65,8 +65,8 @@ func (s *Service) CreateOrder(ctx context.Context, ord entity.Order) (entity.Ord
 		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   created.ID,
-			EventType:     "created",
-			Payload:       map[string]any{"orderId": created.ID},
+			EventType:     "order.created",
+			Payload:       map[string]any{"orderId": created.ID, "userId": created.CustomerID, "totalPrice": created.TotalAmount},
 			Status:        entity.OutboxStatus{ID: 1, Name: "pending"},
 			CreatedAt:     time.Now(),
 		}
@@ -358,6 +358,9 @@ func (s *Service) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entity.O
 	// Fallback to Postgres
 	ordFull, err := s.OrderRepo.GetOrderByID(ctx, orderID)
 	if err != nil {
+		if errors.Is(err, repository.ErrOrderNotFound){
+			return entity.Order{}, ErrOrderNotFound
+		}
 		log.Infof("OrderService.GetOrderByID: error: %v", err)
 		return entity.Order{}, err
 	}
@@ -367,38 +370,27 @@ func (s *Service) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entity.O
 	return ordFull, nil
 }
 
-func (s *Service) GetOrdersByUser(ctx context.Context, userID uuid.UUID) ([]entity.Order, error) {
-	log.Infof("OrderService.GetOrdersByUser: userID = %v", userID)
+func (s *Service) GetOrdersByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]entity.Order, int, error) {
+	log.Infof("OrderService.GetOrdersByUser: userID = %v limit=%d offset=%d", userID, limit, offset)
 
-	var orders []entity.Order
-
-	ids, err := s.CacheRepo.GetUserActiveOrders(ctx, userID)
-
-	if err == nil && len(ids) > 0 {
-		activeOrders := lo.FilterMap(ids, func(idStr string, _ int) (entity.Order, bool) {
-			id, err := uuid.Parse(idStr)
-			if err != nil {
-				return entity.Order{}, false
-			}
-			ord, err := s.CacheRepo.GetByID(ctx, id)
-			if err != nil || ord == nil {
-				return entity.Order{}, false
-			}
-			return *ord, true
-		})
-
-		orders = append(orders, activeOrders...)
-	}
-
-	inactiveOrders, err := s.OrderRepo.GetOrdersByUserID(ctx, userID)
+	// Получаем заказы из БД с пагинацией
+	orders, total, err := s.OrderRepo.GetOrdersByUserID(ctx, userID, limit, offset)
 	if err != nil {
 		log.Errorf("OrderService.GetOrdersByUser: error: %v", err)
-		return nil, err
+		return nil, 0, err
 	}
 
-	orders = append(orders, inactiveOrders...)
+	return orders, total, nil
+}
 
-	return orders, nil
+func (s *Service) GetAllOrders(ctx context.Context, limit, offset int) ([]entity.Order, int, error) {
+	log.Infof("OrderService.GetAllOrders: limit=%d offset=%d", limit, offset)
+	orders, total, err := s.OrderRepo.GetAllOrders(ctx, limit, offset)
+	if err != nil {
+		log.Errorf("OrderService.GetAllOrders: error: %v", err)
+		return nil, 0, err
+	}
+	return orders, total, nil
 }
 
 func (s *Service) GetActiveOrdersByUser(ctx context.Context, userID uuid.UUID) ([]entity.Order, error) {

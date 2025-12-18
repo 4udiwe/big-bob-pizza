@@ -1,0 +1,280 @@
+basePath: /
+definitions:
+  entity.PaymentStatus:
+    properties:
+      id:
+        type: integer
+      name:
+        $ref: '#/definitions/entity.PaymentStatusName'
+    type: object
+  entity.PaymentStatusName:
+    enum:
+    - pending
+    - completed
+    - failed
+    type: string
+    x-enum-varnames:
+    - PaymentStatusPending
+    - PaymentStatusCompleted
+    - PaymentStatusFailed
+  get_payment.PaymentResponse:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      currency:
+        type: string
+      failureReason:
+        type: string
+      id:
+        type: string
+      orderId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.PaymentStatus'
+      updatedAt:
+        type: string
+    type: object
+  get_payment_by_order.PaymentResponse:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      currency:
+        type: string
+      failureReason:
+        type: string
+      id:
+        type: string
+      orderId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.PaymentStatus'
+      updatedAt:
+        type: string
+    type: object
+  get_payments.PaymentResponse:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      currency:
+        type: string
+      failureReason:
+        type: string
+      id:
+        type: string
+      orderId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.PaymentStatus'
+      updatedAt:
+        type: string
+      userId:
+        type: string
+    type: object
+  get_payments.PaymentsResponse:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      payments:
+        items:
+          $ref: '#/definitions/get_payments.PaymentResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  post_payment.Request:
+    properties:
+      amount:
+        minimum: 0
+        type: number
+      orderId:
+        type: string
+    required:
+    - amount
+    - orderId
+    type: object
+  post_payment.Response:
+    properties:
+      amount:
+        type: number
+      createdAt:
+        type: string
+      currency:
+        type: string
+      failureReason:
+        type: string
+      id:
+        type: string
+      orderId:
+        type: string
+      status:
+        $ref: '#/definitions/entity.PaymentStatus'
+      updatedAt:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact:
+    email: support@bigbobpizza.com
+    name: API Support
+  description: API для обработки платежей в системе Big Bob Pizza
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Big Bob Pizza - Payment Service API
+  version: "1.0"
+paths:
+  /payments:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список платежей с пагинацией. Можно фильтровать по статусу
+        и пользователю
+      parameters:
+      - default: 20
+        description: Количество записей на странице
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение для пагинации
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      - description: 'Фильтр по статусу: pending, completed, failed'
+        in: query
+        name: status
+        type: string
+      - description: Фильтр по ID пользователя (UUID)
+        in: query
+        name: userId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_payments.PaymentsResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить список всех платежей
+      tags:
+      - payments
+    post:
+      consumes:
+      - application/json
+      description: Обрабатывает платеж для указанного заказа. Заказ должен быть доступен
+        для оплаты (создан не более 30 минут назад)
+      parameters:
+      - description: Данные для оплаты
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/post_payment.Request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/post_payment.Response'
+        "400":
+          description: Ошибка валидации
+          schema:
+            type: string
+        "404":
+          description: Заказ не найден
+          schema:
+            type: string
+        "409":
+          description: Заказ уже оплачен
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Провести оплату заказа
+      tags:
+      - payments
+  /payments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о платеже по его идентификатору
+      parameters:
+      - description: ID платежа (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_payment.PaymentResponse'
+        "404":
+          description: Платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить платеж по ID
+      tags:
+      - payments
+  /payments/order/{orderId}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о платеже для указанного заказа
+      parameters:
+      - description: ID заказа (UUID)
+        in: path
+        name: orderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/get_payment_by_order.PaymentResponse'
+        "404":
+          description: Платеж не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получить платеж по ID заказа
+      tags:
+      - payments
+schemes:
+- http
+- https
+swagger: "2.0"
