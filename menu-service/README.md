@@ -33,31 +33,15 @@ menu_service/
 - **asyncpg** - асинхронный драйвер PostgreSQL
 - **Alembic** - миграции БД
 
-## Быстрый старт
-
-Самый простой способ запуска - через Docker:
+## Запуск
 
 ```bash
-# 1. Запустите PostgreSQL
-docker-compose up -d
-
-# 2. Создайте .env файл
-echo "DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=menu_db" > .env
-
-# 3. Установите зависимости
-pip install -r requirements.txt
-
-# 4. Запустите сервис
-python main.py
+docker-compose up -d --build
 ```
 
-Подробные инструкции:
-- [QUICK_START.md](QUICK_START.md) - быстрый старт
-- [SETUP_DATABASE.md](SETUP_DATABASE.md) - настройка базы данных
+## Документация
+
+Документация доступна по http://localhost:8000/docs или в файле [openapi](openapi.json)
 
 ## Установка и запуск
 
