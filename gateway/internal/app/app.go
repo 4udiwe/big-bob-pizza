@@ -25,6 +25,7 @@ type Config struct {
 		Order     string `yaml:"order"`
 		Payment   string `yaml:"payment"`
 		Analytics string `yaml:"analytics"`
+		Menu      string `yaml:"menu"`
 	} `yaml:"upstreams"`
 }
 
@@ -50,6 +51,8 @@ func New(configPath string) *App {
 		cfg.Upstreams.Order = "http://order-service:8080"
 		cfg.Upstreams.Payment = "http://payment-service:8081"
 		cfg.Upstreams.Analytics = "http://analytics-service:8083"
+		cfg.Upstreams.Menu = "http://menu-service:8084"
+		log.Warnf("config file not found, using defaults: %v", err)
 	}
 
 	initLogger(cfg.Logger.Level)

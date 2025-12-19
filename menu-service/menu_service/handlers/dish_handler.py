@@ -57,7 +57,7 @@ class DishResponse(BaseModel):
         from_attributes = True
 
 
-@router.post("", response_model=DishResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DishResponse, status_code=status.HTTP_201_CREATED)
 async def create_dish(
     request: CreateDishRequest,
     service: MenuService = Depends(get_menu_service),
@@ -170,7 +170,7 @@ async def get_dish(
         )
 
 
-@router.get("", response_model=list[DishResponse])
+@router.get("/", response_model=list[DishResponse])
 async def get_all_dishes(
     limit: int = 100,
     offset: int = 0,

@@ -62,16 +62,6 @@ func newReverseProxy(target string) *httputil.ReverseProxy {
 		req.Host = u.Host
 	}
 
-	proxy.ModifyResponse = func(resp *http.Response) error {
-		// ensure content-length set correctly
-		if resp.Header.Get("Content-Length") == "" {
-			if resp.Body != nil {
-				// can't reliably set without reading; skip
-			}
-		}
-		return nil
-	}
-
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		log.WithError(err).WithField("upstream", target).Error("upstream error")
 		w.WriteHeader(http.StatusBadGateway)
@@ -93,6 +83,9 @@ func NewRouter(cfg Config) http.Handler {
 	orderProxy := newReverseProxy(cfg.Upstreams.Order)
 	paymentProxy := newReverseProxy(cfg.Upstreams.Payment)
 	analyticsProxy := newReverseProxy(cfg.Upstreams.Analytics)
+	menuProxy := newReverseProxy(cfg.Upstreams.Menu)
+
+	mux.Handle("/dishes/", menuProxy)
 
 	mux.Handle("/orders", orderProxy)
 	mux.Handle("/orders/", orderProxy)
