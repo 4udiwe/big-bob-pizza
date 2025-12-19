@@ -9,8 +9,6 @@ services:
       POSTGRES_USER: ${ORDER_DB_USER:-order}
       POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-orderpass}
       POSTGRES_DB: ${ORDER_DB_NAME:-orderdb}
-    ports:
-      - "${ORDER_DB_PORT:-5432}:5432"
     volumes:
       - postgres_order_data:/var/lib/postgresql/data
     healthcheck:
@@ -33,8 +31,6 @@ services:
       POSTGRES_USER: ${PAYMENT_DB_USER:-payment}
       POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-paymentpass}
       POSTGRES_DB: ${PAYMENT_DB_NAME:-paymentdb}
-    ports:
-      - "${PAYMENT_DB_PORT:-5433}:5432"
     volumes:
       - postgres_payment_data:/var/lib/postgresql/data
     healthcheck:
@@ -49,12 +45,49 @@ services:
     networks:
       - app-network
 
+  # PostgreSQL для analytics-service
+  postgres_analytics:
+    image: postgres:15
+    container_name: postgres_analytics
+    environment:
+      POSTGRES_USER: ${ANALYTICS_DB_USER:-analytics}
+      POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD:-analyticspass}
+      POSTGRES_DB: ${ANALYTICS_DB_NAME:-analyticsdb}
+    volumes:
+      - postgres_analytics_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${ANALYTICS_DB_USER:-analytics} -d ${ANALYTICS_DB_NAME:-analyticsdb}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+  # PostgreSQL для menu-service
+  postgres_menu:
+    image: postgres:14
+    container_name: postgres_menu
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: menu_db
+    volumes:
+      - postgres_menu_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
   # Redis для order-service
   redis:
     image: redis:7
     container_name: redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -68,8 +101,6 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
     networks:
       - app-network
 
@@ -96,9 +127,6 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-    ports:
-      - "9092:9092" # external access
-      - "29092:29092" # нужен для некоторых UI/cli tools
     networks:
       - app-network
 
@@ -143,8 +171,6 @@ services:
       SERVER_PORT: "${ORDER_SERVER_PORT:-8080}"
     volumes:
       - ./order-service/config:/config:ro
-    ports:
-      - "${ORDER_APP_PORT:-8080}:8080"
     networks:
       - app-network
     healthcheck:
@@ -156,6 +182,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    labels:
+      - app=order
+      - env=prod
 
   # Payment Service
   payment-service:
@@ -179,8 +208,6 @@ services:
       SERVER_PORT: "${PAYMENT_SERVER_PORT:-8081}"
     volumes:
       - ./payment-service/config:/config:ro
-    ports:
-      - "${PAYMENT_APP_PORT:-8081}:8081"
     networks:
       - app-network
     healthcheck:
@@ -192,11 +219,184 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    labels:
+      - app=payment
+      - env=prod
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: .
+      dockerfile: ./analytics-service/Dockerfile
+    container_name: analytics_service
+    depends_on:
+      postgres_analytics:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      # Postgres connection
+      POSTGRES_URL: "postgres://${ANALYTICS_DB_USER:-analytics}:${ANALYTICS_DB_PASSWORD:-analyticspass}@postgres_analytics:5432/${ANALYTICS_DB_NAME:-analyticsdb}?sslmode=disable"
+      # Kafka brokers
+      KAFKA_BROKERS: "kafka:9092"
+      # Config path
+      CONFIG_PATH: "/config/config.yaml"
+      # Server port
+      SERVER_PORT: "${ANALYTICS_SERVER_PORT:-8083}"
+    volumes:
+      - ./analytics-service/config:/config:ro
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:${ANALYTICS_SERVER_PORT:-8083}/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    labels:
+      - app=analytics
+      - env=prod
+
+  # Menu Service
+  menu-service:
+    build:
+      context: ./menu-service
+      dockerfile: Dockerfile
+    container_name: menu_service
+    environment:
+      DB_HOST: postgres_menu
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: menu_db
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8084
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres_menu:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    labels:
+      - app=menu
+      - env=prod
+
+  # Gateway - single external entrypoint
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    depends_on:
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started
+      menu-service:
+        condition: service_started
+    environment:
+      CONFIG_PATH: "/config/config.yaml"
+      ORDER_URL: "http://order-service:8080"
+      PAYMENT_URL: "http://payment-service:8081"
+      ANALYTICS_URL: "http://analytics-service:8083"
+      MENU_URL: "http://menu-service:8084"
+    volumes:
+      - ./gateway/config:/config:ro
+    ports:
+      - "${GATEWAY_APP_PORT:-8080}:8080"
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:${GATEWAY_APP_PORT:-8080}/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    labels:
+      - app=gateway
+      - env=prod
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - app-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    depends_on:
+      - prometheus
+      - loki
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: ""
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    networks:
+      - app-network
+
+  # Loki
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    command: -config.file=/mnt/config/loki-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/mnt/config/loki-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - app-network
+
+  # Promtail
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    command: -config.file=/mnt/config/promtail-config.yaml
+    depends_on:
+      - loki
+    volumes:
+      - ./promtail-config.yaml:/mnt/config/promtail-config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - app-network
 
 volumes:
   postgres_order_data:
   postgres_payment_data:
+  postgres_analytics_data:
+  postgres_menu_data:
   redis_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
 
 networks:
   app-network:

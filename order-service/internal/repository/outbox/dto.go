@@ -41,7 +41,7 @@ func (r RowOutbox) ToEvent() outbox.Event {
 	}
 	return outbox.Event{
 		ID:        r.ID,
-		EventType: r.EventType,
+		EventType: r.AggregateType + "." + r.EventType,
 		Payload:   payloadBytes,
 	}
 }
