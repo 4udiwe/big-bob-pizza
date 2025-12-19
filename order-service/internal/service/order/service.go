@@ -65,7 +65,7 @@ func (s *Service) CreateOrder(ctx context.Context, ord entity.Order) (entity.Ord
 		ev := entity.OutboxEvent{
 			AggregateType: "order",
 			AggregateID:   created.ID,
-			EventType:     "order.created",
+			EventType:     "created",
 			Payload:       map[string]any{"orderId": created.ID, "userId": created.CustomerID, "totalPrice": created.TotalAmount},
 			Status:        entity.OutboxStatus{ID: 1, Name: "pending"},
 			CreatedAt:     time.Now(),
@@ -358,7 +358,7 @@ func (s *Service) GetOrderByID(ctx context.Context, orderID uuid.UUID) (entity.O
 	// Fallback to Postgres
 	ordFull, err := s.OrderRepo.GetOrderByID(ctx, orderID)
 	if err != nil {
-		if errors.Is(err, repository.ErrOrderNotFound){
+		if errors.Is(err, repository.ErrOrderNotFound) {
 			return entity.Order{}, ErrOrderNotFound
 		}
 		log.Infof("OrderService.GetOrderByID: error: %v", err)

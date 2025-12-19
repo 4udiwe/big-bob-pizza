@@ -1,0 +1,10 @@
+app:
+  name: "big-bob-pizza-gateway"
+http:
+  port: "8080"
+logger:
+  level: "info"
+upstreams:
+  order: "http://order-service:8080"
+  payment: "http://payment-service:8081"
+  analytics: "http://analytics-service:8083"
