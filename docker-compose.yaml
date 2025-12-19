@@ -182,6 +182,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    labels:
+      - app=order
+      - env=prod
 
   # Payment Service
   payment-service:
@@ -216,6 +219,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    labels:
+      - app=payment
+      - env=prod
 
   # Analytics Service
   analytics-service:
@@ -250,6 +256,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    labels:
+      - app=analytics
+      - env=prod
 
   # Menu Service
   menu-service:
@@ -272,6 +281,9 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    labels:
+      - app=menu
+      - env=prod
 
   # Gateway - single external entrypoint
   gateway:
@@ -309,6 +321,9 @@ services:
       interval: 30s
       timeout: 3s
       retries: 5
+    labels:
+      - app=gateway
+      - env=prod
 
   # Prometheus
   prometheus:
@@ -331,6 +346,7 @@ services:
     container_name: grafana
     depends_on:
       - prometheus
+      - loki
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     environment:
@@ -345,6 +361,33 @@ services:
     networks:
       - app-network
 
+  # Loki
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    command: -config.file=/mnt/config/loki-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/mnt/config/loki-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - app-network
+
+  # Promtail
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    command: -config.file=/mnt/config/promtail-config.yaml
+    depends_on:
+      - loki
+    volumes:
+      - ./promtail-config.yaml:/mnt/config/promtail-config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - app-network
+
 volumes:
   postgres_order_data:
   postgres_payment_data:
@@ -353,6 +396,7 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
+  loki_data:
 
 networks:
   app-network:
