@@ -6,8 +6,11 @@ on:
       - main
 
 jobs:
+  # =========================
+  # ORDER SERVICE
+  # =========================
   order-service:
-    name: Order Service – tests
+    name: Order Service – Build & Deploy
     runs-on: ubuntu-latest
 
     defaults:
