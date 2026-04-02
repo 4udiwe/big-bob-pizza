@@ -47,15 +47,26 @@ func (c *KafkaConsumer) Subscribe(
 		Brokers:  c.brokers,
 		GroupID:  groupID,
 		Topic:    topic,
-		MinBytes: 10e3,
+		MinBytes: 1,
 		MaxBytes: 10e6,
 	})
 
 	go func() {
+		defer func() {
+        if r := recover(); r != nil {
+            logrus.Errorf("KafkaConsumer panic: %v", r)
+        }
+    }()
 		defer c.reader.Close()
 
+		logrus.Debug("consumer loop started")
 		for {
+			logrus.Debug("before fetch message")
+
 			m, err := c.reader.FetchMessage(ctx)
+			
+			logrus.Debug("after fetch message")
+
 			if err != nil {
 				if ctx.Err() != nil {
 					logrus.Info("KafkaConsumer: context cancelled, stopping...")
